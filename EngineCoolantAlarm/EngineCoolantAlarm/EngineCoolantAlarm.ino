@@ -20,25 +20,25 @@ enum ALARM
 CTUtils ctu;
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
-LiquidCrystal lcd(12, 11, 10, 9, 8, 7);
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
-DeviceAddress sensor_head = { 0x10, 0x06, 0x1E, 0xE4, 0x02, 0x08, 0x00, 0xE9 }; //10 06 1E E4 02 08 00 E9
-DeviceAddress sensor_in = { 0x28, 0x1D, 0x39, 0x31, 0x2, 0x0, 0x0, 0xF0 };
-DeviceAddress sensor_out = { 0x28, 0x1D, 0x39, 0x31, 0x2, 0x0, 0x0, 0xF0 };
+DeviceAddress sensor_head = { 0x10, 0x06, 0x1E, 0xE4, 0x02, 0x08, 0x00, 0xE9 }; //
+DeviceAddress sensor_in = { 0x10, 0xDF, 0xDA, 0x0D, 0x03, 0x08, 0x00, 0xF7 }; // 10 DF DA 0D 03 08 00 F7
+DeviceAddress sensor_out = { 0x28, 0x1D, 0x39, 0x31, 0x2, 0x0, 0x0, 0xF0 }; //
 
 // presets - setup
-const long intervalUpDateTemperatures = 3000; //miliseconds
-const long intervalUpDateDisplay = 5000; //miliseconds
+const long intervalUpDateTemperatures = 2000; //miliseconds
+const long intervalUpDateDisplay = 3000; //miliseconds
 double TempWaring = 87, TempDanger = 92;
 
 unsigned long currentMillis = millis();
 unsigned long lastUpDateTemperatures = 0;
 unsigned long lastUpDateDisplay = 0;
-double TempHead = 0, TempIn = 0, TempOut = 0;
+double TempHead, TempIn, TempOut;
 double TempMinHead = 150, TempMaxHead = 0, TempMinIn = 150, TempMaxIn = 0, TempMinOut = 150, TempMaxOut = 0;
 int CheckAlarmWaring, CheckAlarmDanger;
 int ALARM = NONE;
-int DISPLAYMINMAX = 0
+int DISPLAYMINMAX = 0;
 bool BUZZER_MUTE = false;
 
 void setup() {
@@ -55,7 +55,7 @@ void loop() {
     lastUpDateTemperatures = currentMillis;
     updateTemperatures();
     verefyAlarms();
-    writeEEPROM();
+    writeEEPROM(false);
   }
   if (currentMillis - lastUpDateDisplay >= intervalUpDateDisplay) {
     lastUpDateDisplay = currentMillis;
@@ -120,7 +120,7 @@ void updateDisplay(){
   lcd.setCursor(0, 2);
   lcd.print("S: "); lcd.print(TempOut); lcd.write(B11011111); lcd.print("C");
 
-  lcd.setCursor(3, 0);
+  lcd.setCursor(0, 3);
   switch(DISPLAYMINMAX){
     case 0:
       
@@ -142,7 +142,7 @@ void updateDisplay(){
 }
 
 void buttonActions(){
-  int bb = ctu.getButtonLongPress(PIN_MENU);
+  int bb = ctu.getButtonLongPress(BUTTON);
   if (bb == 1) {
       BUZZER_MUTE = true;
       turnOFF(BUZZER);
@@ -164,9 +164,11 @@ void initialize(){
   pinMode(BUTTON, INPUT);
   pinMode(BUZZER, OUTPUT);
 
+  lcd.begin(16, 4);
+
   lcd.setCursor(5, 1);
   lcd.print("CADORE");
-  lcd.setCursor(1, 2);
+  lcd.setCursor(3, 2);
   lcd.print("TECNOLOGIA");
   
   turnON(LED_Y);
@@ -201,8 +203,8 @@ void loadEEPROM(){
   CheckAlarmDanger = ctu.readFloatEEPROM(45);
 }
 
-void writeEEPROM(bool resetmaxmin = false){
-  if(resetmaxmin == true{
+void writeEEPROM(bool resetmaxmin){
+  if(resetmaxmin == true){
     ctu.writeFloatEEPROM(10, 00.00);
     ctu.writeFloatEEPROM(15, 00.00);
     ctu.writeFloatEEPROM(20, 00.00);
