@@ -22,9 +22,9 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
-DeviceAddress sensor_head = { 0x10, 0x06, 0x1E, 0xE4, 0x02, 0x08, 0x00, 0xE9 }; //
+DeviceAddress sensor_head = { 0x10, 0x57, 0x02, 0xF7, 0x02, 0x08, 0x00, 0x1D }; //10 57 02 F7 02 08 00 1D / 10 78 68 DE 02 08 00 C0 the original system
 DeviceAddress sensor_in = { 0x10, 0xDF, 0xDA, 0x0D, 0x03, 0x08, 0x00, 0xF7 }; // 10 DF DA 0D 03 08 00 F7
-DeviceAddress sensor_out = { 0x28, 0x1D, 0x39, 0x31, 0x2, 0x0, 0x0, 0xF0 }; //
+DeviceAddress sensor_out = { 0x10, 0xFA, 0xF5, 0xE3, 0x02, 0x08, 0x00, 0xCA }; // 10 FA F5 E3 02 08 00 CA
 
 // presets - setup
 const long intervalUpDateTemperatures = 2000; //miliseconds
@@ -32,6 +32,7 @@ const long intervalUpDateDisplay = 3000; //miliseconds
 double TempWaring = 87, TempDanger = 92;
 
 unsigned long currentMillis = millis();
+unsigned long startMillis = millis();
 unsigned long lastUpDateTemperatures = 0;
 unsigned long lastUpDateDisplay = 0;
 double TempHead, TempIn, TempOut;
@@ -42,26 +43,24 @@ int DISPLAYMINMAX = 0;
 bool BUZZER_MUTE = false;
 
 void setup() {
+  Serial.begin(9600);
   ctu.setLongPressTime(3000);
   loadEEPROM();
   initialize();
 }
 
 void loop() {
-  CheckAlarmWaring = 0;
-  CheckAlarmDanger = 0;
   currentMillis = millis();
   if (currentMillis - lastUpDateTemperatures >= intervalUpDateTemperatures) {
     lastUpDateTemperatures = currentMillis;
     updateTemperatures();
-    verefyAlarms();
     writeEEPROM(false);
   }
   if (currentMillis - lastUpDateDisplay >= intervalUpDateDisplay) {
     lastUpDateDisplay = currentMillis;
     updateDisplay();
   }
-
+  verefyAlarms();
   buttonActions();
 }
 
@@ -71,14 +70,16 @@ void updateTemperatures(){
   TempIn = sensors.getTempC(sensor_in);
   TempOut = sensors.getTempC(sensor_out);
 
-  if(TempHead > TempMaxHead) {TempMaxHead = TempHead;}
-  if(TempHead < TempMinHead) {TempMinHead = TempHead;}
-  
-  if(TempIn > TempMaxIn) {TempMaxIn = TempIn;}
-  if(TempIn < TempMinIn) {TempMinIn = TempIn;}
-  
-  if(TempOut > TempMaxOut) {TempMaxOut = TempOut;}
-  if(TempOut < TempMinOut) {TempMinOut = TempOut;}  
+  if(millis() - startMillis >= 1000){
+    if(TempHead > TempMaxHead) {TempMaxHead = TempHead;}
+    if(TempHead < TempMinHead) {TempMinHead = TempHead;}
+    
+    if(TempIn > TempMaxIn) {TempMaxIn = TempIn;}
+    if(TempIn < TempMinIn) {TempMinIn = TempIn;}
+    
+    if(TempOut > TempMaxOut) {TempMaxOut = TempOut;}
+    if(TempOut < TempMinOut) {TempMinOut = TempOut;}  
+  }
 }
 
 void verefyAlarms(){
@@ -109,6 +110,7 @@ void verefyAlarms(){
     turnOFF(BUZZER);
     BUZZER_MUTE = false;
   }
+  writeEEPROM(false);
 }
 
 void updateDisplay(){
@@ -146,8 +148,20 @@ void buttonActions(){
   if (bb == 1) {
       BUZZER_MUTE = true;
       turnOFF(BUZZER);
+      Serial.println("short");
   } else if (bb == 2) {
       writeEEPROM(true);
+      turnON(BUZZER);
+      
+      lcd.clear();
+      lcd.setCursor(5, 1);
+      lcd.print("CADORE");
+      lcd.setCursor(3, 2);
+      lcd.print("TECNOLOGIA");
+      lcd.setCursor(3, 3);
+      lcd.print("ZERANDO...");      
+      delay(2000);
+      turnOFF(BUZZER);
   }
 }
 
@@ -164,6 +178,11 @@ void initialize(){
   pinMode(BUTTON, INPUT);
   pinMode(BUZZER, OUTPUT);
 
+  sensors.begin();
+  sensors.setResolution(sensor_head, 9);
+  sensors.setResolution(sensor_in, 9);
+  sensors.setResolution(sensor_out, 9);
+  
   lcd.begin(16, 4);
 
   lcd.setCursor(5, 1);
@@ -193,26 +212,43 @@ void initialize(){
 }
 
 void loadEEPROM(){
-  TempMinHead = ctu.readFloatEEPROM(10);
-  TempMaxHead = ctu.readFloatEEPROM(15);
-  TempMinIn =  ctu.readFloatEEPROM(20);
-  TempMaxIn = ctu.readFloatEEPROM(25);
-  TempMinOut = ctu.readFloatEEPROM(30);
-  TempMaxOut = ctu.readFloatEEPROM(35);
+  float fTempMinHead = ctu.readFloatEEPROM(10);
+  float fTempMaxHead = ctu.readFloatEEPROM(15);
+  float fTempMinIn =  ctu.readFloatEEPROM(20);
+  float fTempMaxIn = ctu.readFloatEEPROM(25);
+  float fTempMinOut = ctu.readFloatEEPROM(30);
+  float fTempMaxOut = ctu.readFloatEEPROM(35);
+
+  if(fTempMinHead == 0) {} else{ TempMinHead = fTempMinHead; }
+  if(fTempMaxHead == 0) {} else{ TempMaxHead = fTempMaxHead; }
+  if(fTempMinIn == 0) {} else{ TempMinIn = fTempMinIn; }
+  if(fTempMaxIn == 0) {} else{ TempMaxIn = fTempMaxIn; }
+  if(fTempMinOut == 0) {} else{ TempMinOut = fTempMinOut; }
+  if(fTempMaxOut == 0) {} else{ TempMaxOut = fTempMaxOut; }
+  
   CheckAlarmWaring = ctu.readFloatEEPROM(40);
   CheckAlarmDanger = ctu.readFloatEEPROM(45);
 }
 
 void writeEEPROM(bool resetmaxmin){
   if(resetmaxmin == true){
-    ctu.writeFloatEEPROM(10, 00.00);
-    ctu.writeFloatEEPROM(15, 00.00);
-    ctu.writeFloatEEPROM(20, 00.00);
-    ctu.writeFloatEEPROM(25, 00.00);
-    ctu.writeFloatEEPROM(30, 00.00);
-    ctu.writeFloatEEPROM(35, 00.00);
+    ctu.writeFloatEEPROM(10, 0);
+    ctu.writeFloatEEPROM(15, 0);
+    ctu.writeFloatEEPROM(20, 0);
+    ctu.writeFloatEEPROM(25, 0);
+    ctu.writeFloatEEPROM(30, 0);
+    ctu.writeFloatEEPROM(35, 0);
     ctu.writeFloatEEPROM(40, 0);
     ctu.writeFloatEEPROM(45, 0);
+
+    TempMinHead = TempHead;
+    TempMaxHead = TempHead;
+    TempMinIn =  TempIn;
+    TempMaxIn = TempIn;
+    TempMinOut = TempOut;
+    TempMaxOut = TempOut; 
+    CheckAlarmWaring = 0;
+    CheckAlarmDanger = 0;
   }else{
     ctu.writeFloatEEPROM(10, TempMinHead);
     ctu.writeFloatEEPROM(15, TempMaxHead);
