@@ -44,6 +44,7 @@ void initialize()
 void executeInt()
 {
 	if (rpmcount >= 20) {
+		//millis() - timeoldrpm > 80
 		stopInt();
 		rpm = ((60 * 1000) / ((millis() - timeoldrpm)*rpmcount));
 		timeoldrpm = millis();
