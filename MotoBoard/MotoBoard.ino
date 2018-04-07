@@ -1,7 +1,7 @@
 #include <LiquidCrystal.h>
 
 #define interrupt_pin 2
-#define ledStatusPin 10
+#define ledStatusPin 13
 
 volatile byte rpmcount = 0;
 unsigned int rpm = 0, max_rpm = 0;
@@ -17,8 +17,10 @@ void setup()
 	startInt();
 	initialize();
 }
+long milisserial = 0;
 void loop()
 {
+  executeInt();
 	if (rpm > max_rpm) { max_rpm = rpm; }
 
 	lcd.setCursor(0, 0);
@@ -28,11 +30,16 @@ void loop()
 	lcd.print("MAX: "); lcd.print(max_rpm, DEC);
 	
 	displayBar();
+ if(millis() - milisserial > 1000){
+    Serial.println(rpm, DEC);
+    milisserial = millis();
+ }
 }
 
 void initialize()
 {
-	pinMode(interrupt_pin, INPUT_PULLUP);
+	//pinMode(interrupt_pin, INPUT_PULLUP);
+ pinMode(ledStatusPin, OUTPUT);
 
 	lcd.begin(16, 4);
 	lcd.setCursor(5, 1);
@@ -43,10 +50,12 @@ void initialize()
 
 void executeInt()
 {
+  //rpm = 0;
 	if (rpmcount >= 20) {
+  rpm = 0;
 		//millis() - timeoldrpm > 80
 		stopInt();
-		rpm = ((60 * 1000) / ((millis() - timeoldrpm)*rpmcount));
+		rpm = ((60 * 1000) / ((millis() - timeoldrpm)* rpmcount));
 		timeoldrpm = millis();
 		rpmcount = 0;
 		startInt();
@@ -55,6 +64,7 @@ void executeInt()
 
 void rpm_fun()
 {
+  //Serial.println("DEU");
 	rpmcount++;
 	if (ledStatus == LOW)
 
